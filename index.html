@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Kanban Poka-yoke</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f4f9; text-align: center; }
+        #camera-container { position: relative; width: 100%; max-width: 500px; margin: auto; }
+        video { width: 100%; border-radius: 8px; background: #000; }
+        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                   width: 70%; height: 30%; border: 2px dashed #00ff00; pointer-events: none; }
+        #result-card { margin-top: 20px; padding: 15px; background: white; border-radius: 8px; 
+                       box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none; }
+        img { max-width: 200px; margin-top: 10px; border: 1px solid #ddd; }
+        .status { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h2>Validación de Material</h2>
+    <div id="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <div id="overlay"></div>
+    </div>
+    
+    <p class="status" id="status">Iniciando cámara...</p>
+
+    <div id="result-card">
+        <h3 id="res-id">ID: ---</h3>
+        <p><strong>N° Parte:</strong> <span id="res-part">---</span></p>
+        <p><strong>Cantidad:</strong> <span id="res-qty">---</span></p>
+        <div id="image-container"></div>
+    </div>
+
+    <script>
+        // Base de Datos Local (JSON)
+        const materialDB = [
+            {
+                "kanban_id": "M351",
+                "part_number": "58105-04010-00V", [cite: 1, 12, 13, 15]
+                "pack_qty": 24, [cite: 1, 21, 23]
+                "img_url": "https://via.placeholder.com/200?text=REF+M351"
+            }
+            // Agregar más registros aquí
+        ];
+
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const resultCard = document.getElementById('result-card');
+
+        // Configurar Cámara
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                status.innerText = "Buscando patrón M###...";
+                scanFrame();
+            } catch (err) {
+                status.innerText = "Error al acceder a la cámara: " + err;
+            }
+        }
+
+        // Lógica de Escaneo
+        async function scanFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            // Procesar con Tesseract
+            Tesseract.recognize(canvas, 'eng')
+                .then(({ data: { text } }) => {
+                    // Expresión regular para encontrar el ID (Letra M seguida de números)
+                    const match = text.match(/M\d{3,4}/); 
+                    
+                    if (match) {
+                        const foundID = match[0];
+                        validateMaterial(foundID);
+                    } else {
+                        requestAnimationFrame(scanFrame);
+                    }
+                });
+        }
+
+        function validateMaterial(id) {
+            const material = materialDB.find(m => m.kanban_id === id);
+            
+            if (material) {
+                document.getElementById('res-id').innerText = `ID Detectado: ${material.kanban_id}`;
+                document.getElementById('res-part').innerText = material.part_number;
+                document.getElementById('res-qty').innerText = material.pack_qty;
+                document.getElementById('image-container').innerHTML = `<img src="${material.img_url}" alt="Referencia">`;
+                
+                resultCard.style.display = "block";
+                status.innerText = "¡Material Encontrado!";
+                
+                // Reiniciar escaneo tras 5 segundos para el siguiente material
+                setTimeout(() => {
+                    resultCard.style.display = "none";
+                    scanFrame();
+                }, 5000);
+            } else {
+                requestAnimationFrame(scanFrame);
+            }
+        }
+
+        startCamera();
+    </script>
+</body>
+</html>
