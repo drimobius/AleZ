@@ -1,152 +1,244 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KTMEX - Validador Kanban</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sistema de Inventario Fiscal </title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+ 
     <style>
-        :root { --ktmex-red: #e30613; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; color: #333; }
-        .container { max-width: 500px; margin: auto; }
-        
-        /* Botón de Permiso Estilo iOS */
-        #auth-screen { padding: 40px 20px; }
-        .btn-primary { background: var(--ktmex-red); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; width: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-        
-        #scanner-ui { display: none; }
-        #camera-wrapper { position: relative; width: 100%; aspect-ratio: 3/4; background: #000; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        
-        #scan-region { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 25%; border: 3px solid #00ff00; border-radius: 8px; box-shadow: 0 0 0 1000px rgba(0,0,0,0.5); pointer-events: none; }
-
-        #result-card { margin-top: 20px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 5px solid var(--ktmex-red); animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
-        .part-img { width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; margin-top: 10px; background: #eee; }
-        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 12px; background: #eee; margin-bottom: 10px; }
-    </style>
+        :root { --primary-color: #002d72; --accent-color: #ffcc00; }
+        body { background-color: #f8f9fa; font-family: sans-serif; }
+        .navbar { background-color: var(--primary-color); color: white; font-weight: bold; }
+        .step { display: none; padding: 15px; }
+        .step.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .btn-area { margin-bottom: 10px; padding: 20px; font-weight: bold; font-size: 1.2rem; text-transform: uppercase; }
+        #reader-wrapper { 
+            position: relative; 
+            width: 100%; 
+            max-width: 400px; 
+            margin: auto; 
+            border: 4px solid var(--primary-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .scan-overlay {
+            position: absolute; top: 15%; left: 10%; width: 80%; height: 70%;
+            border: 2px dashed #00ff00; pointer-events: none; z-index: 10;
+            box-shadow: 0 0 0 4000px rgba(0,0,0,0.3);
+        }
+</style>
 </head>
 <body>
-
-<div class="container">
-    <div id="auth-screen">
-        <h2 style="color: var(--ktmex-red);">Control de Producción</h2>
-        <p>Esta herramienta requiere acceso a la cámara para escanear las etiquetas TTMX.</p>
-        <button class="btn-primary" onclick="initApp()">Activar Cámara</button>
-    </div>
-
-    <div id="scanner-ui">
-        <div class="status-badge" id="app-status">Inicializando motor OCR...</div>
-        
-        <div id="camera-wrapper">
-            <video id="video" autoplay playsinline></video>
-            <div id="scan-region"></div>
-        </div>
-
-        <div id="result-card" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 id="res-id" style="margin:0; color: var(--ktmex-red);">---</h2>
-                <span id="res-qty" style="font-weight: bold; background: #333; color: white; padding: 4px 10px; border-radius: 5px;">Qty: --</span>
-            </div>
-            <p style="margin: 10px 0 5px 0;"><strong>N° Parte:</strong> <span id="res-part">---</span></p>
-            <div id="image-placeholder"></div>
-        </div>
-    </div>
+ 
+<nav class="navbar shadow-sm mb-3">
+<div class="container-fluid justify-content-center">
+<span>INVENTARIO FISCAL 2026</span>
 </div>
-
+</nav>
+ 
+<div class="container">
+<div id="step1" class="step active">
+<h4 class="text-center mb-4">Seleccione Sección A</h4>
+<div class="d-grid gap-2">
+<button class="btn btn-primary btn-area" onclick="goToStep2('PRENSAS')">PRENSAS</button>
+<button class="btn btn-primary btn-area" onclick="goToStep2('SOLDADURA')">SOLDADURA</button>
+<button class="btn btn-primary btn-area" onclick="goToStep2('LOGISTICA')">LOGÍSTICA</button>
+</div>
+</div>
+ 
+    <div id="step2" class="step">
+<button class="btn btn-sm btn-outline-secondary mb-3" onclick="resetApp()">← Volver</button>
+<h4 id="titleAreaA" class="mb-3"></h4>
+<div id="btnContainerB" class="row g-2"></div>
+</div>
+ 
+    <div id="step3" class="step text-center">
+<button class="btn btn-sm btn-outline-secondary mb-3" onclick="showStep(2)">← Cambiar Ubicación</button>
+<h5>Enfoque el QR del Kanban</h5>
+<div id="reader-wrapper">
+<div id="reader"></div>
+<div class="scan-overlay"></div>
+</div>
+<p class="text-muted mt-2 small">Buscando Sebango (Letras K, T, A, H, X)...</p>
+</div>
+ 
+    <div id="step4" class="step">
+<div class="card shadow border-0">
+<div class="card-header bg-dark text-white text-center">
+<h5 class="mb-0" id="resSebango">---</h5>
+</div>
+<div class="card-body">
+<div class="row mb-3 text-center">
+<div class="col border-end"><strong>UBIC:</strong> <span id="resUbic"></span></div>
+<div class="col"><strong>QPC:</strong> <span id="resQPC">0</span></div>
+</div>
+ 
+                <div class="mb-3">
+<label class="form-label fw-bold">Cantidad de Cajas:</label>
+<input type="number" id="inputCajas" class="form-control form-control-lg" placeholder="0" inputmode="numeric">
+</div>
+ 
+                <div id="parcialSection" class="mb-3 p-3 bg-light rounded" style="display:none;">
+<label class="form-label fw-bold text-danger">Piezas Sueltas (Parcial):</label>
+<input type="number" id="inputPiezas" class="form-control form-control-lg" placeholder="Cantidad de piezas" inputmode="numeric">
+<div id="parcialHint" class="form-text mt-2"></div>
+</div>
+ 
+                <button class="btn btn-success btn-lg w-100 py-3 mb-2" onclick="validaYCaptura()">GUARDAR CAPTURA</button>
+<button class="btn btn-outline-danger w-100" onclick="showStep(3); startScanner();">Cancelar</button>
+</div>
+</div>
+</div>
+</div>
+ 
 <script>
-    // Datos basados en tu etiqueta de ejemplo [cite: 1, 13, 15, 23]
-    const materialDB = [
-        {
-            "kanban_id": "M351",
-            "part_number": "58105-04010-00V",
-            "pack_qty": 24,
-            "img_url": "https://via.placeholder.com/400x300/e30613/FFFFFF?text=FOTO+REF+58105" 
-        }
-    ];
-
-    let isScanning = false;
-
-    async function initApp() {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('scanner-ui').style.display = 'block';
-        
+    // --- CONFIGURACIÓN Y DATOS ---
+    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzV8QS_0MoziKQNWYbvJx9B5phRFEBxqzejlNNjAjX8-AreoNrpE-nE12v9hUxR2Rpf/exec%22; 
+    // Configuración exacta basada en el mapeo proporcionado
+    const SECCIONES_B = {
+        "PRENSAS": ["BL", "TRS", "PGS"],
+        "SOLDADURA": ["B01", "B02", "B03", "B04", "B05", "B06", "C01", "C02", "C03", "C04", "D01", "D02", "D03", "D04", "E01", "E02", "E03", "E04", "E05", "E06", "F01", "F02", "F03", "F04", "G01", "G02", "G03", "G04", "G05", "A01"],
+        "LOGISTICA": ["BUFFER", "E-COAT", "OSP ´S", "TTMX", "BC SHUTTER", "BC CONTAINERS", "F3A", "F3B", "F3C", "F3D", "F5B", "CONVEYORS", "RECIBO", "CSP"]
+    };
+ 
+    const GLS = {
+        "SOLDADURA": { 1: "BRAYAN LOPEZ", 2: "IVAN HERNANDEZ", 3: "LUIS RODRIGRUEZ", 4: "GISELA", 5: "OMAR FIDENCIO", 6: "ARTURO TENIENTE" },
+        "LOGISTICA": { 7: "DIANA MENDOZA", 8: "SANDRA RODRIGUEZ", 9: "SANDRA SOLANO", 10: "CARLOS PEREZ" },
+        "PRENSAS": { 11: "PEDRO TORRES", 12: "MELISSA VALENCIA", 13: "JOSE JUAN PALACIOS", 14: "ANGEL SERRANO" }
+    };
+ 
+    let appState = { areaA: "", areaB: "", sebango: "", qpc: 0, isDuplicate: false };
+    let scanner = new Html5Qrcode("reader");
+ 
+    // --- NAVEGACIÓN ---
+    function showStep(n) {
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+        document.getElementById(`step${n}`).classList.add('active');
+    }
+ 
+    function resetApp() {
+        appState = { areaA: "", areaB: "", sebango: "", qpc: 0 };
+        showStep(1);
+    }
+ 
+    function goToStep2(area) {
+        appState.areaA = area;
+        document.getElementById('titleAreaA').innerText = "Sección B: " + area;
+        const container = document.getElementById('btnContainerB');
+        container.innerHTML = "";
+        SECCIONES_B[area].forEach(b => {
+            container.innerHTML += `<div class="col-6 col-md-4"><button class="btn btn-outline-dark w-100 py-3" onclick="goToStep3('${b}')">${b}</button></div>`;
+        });
+        showStep(2);
+    }
+ 
+    function goToStep3(subArea) {
+        appState.areaB = subArea;
+        showStep(3);
+        startScanner();
+    }
+ 
+    // --- ESCÁNER ---
+    function startScanner() {
+        const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+        scanner.start({ facingMode: "environment" }, config, onScanSuccess);
+    }
+ 
+    async function onScanSuccess(decodedText) {
+        await scanner.stop();
+        appState.sebango = decodedText.trim();
+        Swal.fire({ title: 'Buscando en Base de Datos...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                } 
-            });
-            
-            const video = document.getElementById('video');
-            video.srcObject = stream;
-            
-            document.getElementById('app-status').innerText = "Buscando ID (M###)...";
-            isScanning = true;
-            setTimeout(scanCycle, 1000); // Dar tiempo a la cámara para enfocar
-        } catch (err) {
-            alert("No se pudo acceder a la cámara. Asegúrate de dar permiso en la configuración de Safari.");
-            console.error(err);
-        }
-    }
-
-    async function scanCycle() {
-        if (!isScanning) return;
-
-        const video = document.getElementById('video');
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Tesseract procesando
-            const result = await Tesseract.recognize(canvas, 'eng');
-            const text = result.data.text;
-            
-            // Busca el ID Kanban (Ej: M351) [cite: 14, 15]
-            const match = text.match(/M\d{3,4}/);
-
-            if (match) {
-                processMatch(match[0]);
-            } else {
-                requestAnimationFrame(scanCycle);
+            const response = await fetch(`${GOOGLE_URL}?action=checkSebango&sebango=${appState.sebango}&ubicacion=${appState.areaB}`);
+            const data = await response.json();
+ 
+            Swal.close();
+ 
+            if (!data.success) {
+                Swal.fire('Atención', 'Sebango no encontrado en esta ubicación.', 'warning');
+                return startScanner();
             }
-        } else {
-            requestAnimationFrame(scanCycle);
+ 
+            appState.qpc = data.qpc;
+            appState.isDuplicate = data.duplicate;
+ 
+            document.getElementById('resSebango').innerText = "SEBANGO: " + appState.sebango;
+            document.getElementById('resUbic').innerText = appState.areaB;
+            document.getElementById('resQPC').innerText = appState.qpc;
+ 
+            const pSec = document.getElementById('parcialSection');
+            const pHint = document.getElementById('parcialHint');
+            if (appState.areaA === "LOGISTICA") {
+                pSec.style.display = "none";
+            } else {
+                pSec.style.display = "block";
+                pHint.innerText = appState.qpc > 30 ? "QPC > 30: Se anotará como (1) parcial." : "QPC < 30: Cuente las piezas exactas.";
+            }
+            showStep(4);
+        } catch (error) {
+            Swal.fire('Error', 'Fallo de conexión con Google Sheets', 'error');
+            startScanner();
         }
     }
-
-    function processMatch(id) {
-        const material = materialDB.find(m => m.kanban_id === id);
-        
-        if (material) {
-            isScanning = false; // Pausar escaneo al encontrar
-            
-            document.getElementById('res-id').innerText = material.kanban_id;
-            document.getElementById('res-part').innerText = material.part_number;
-            document.getElementById('res-qty').innerText = `Qty: ${material.pack_qty}`;
-            document.getElementById('image-placeholder').innerHTML = `<img src="${material.img_url}" class="part-img">`;
-            
-            document.getElementById('result-card').style.display = 'block';
-            document.getElementById('app-status').innerText = "VALIDACIÓN COMPLETADA";
-
-            // Reiniciar después de 6 segundos
-            setTimeout(() => {
-                document.getElementById('result-card').style.display = 'none';
-                document.getElementById('app-status').innerText = "Buscando ID (M###)...";
-                isScanning = true;
-                scanCycle();
-            }, 6000);
-        } else {
-            requestAnimationFrame(scanCycle);
+ 
+    // --- GUARDAR Y CANDADO ---
+    async function validaYCaptura() {
+        const cajas = document.getElementById('inputCajas').value;
+        const piezas = document.getElementById('inputPiezas').value;
+ 
+        if (!cajas) return Swal.fire('Error', 'Debe ingresar cantidad de cajas', 'error');
+ 
+        if (appState.isDuplicate) {
+            const { value: glPass } = await Swal.fire({
+                title: 'Registro Duplicado',
+                text: 'Ingrese su número de empleado GL para autorizar corrección:',
+                input: 'password',
+                confirmButtonText: 'Autorizar'
+            });
+ 
+            if (!GLS[appState.areaA][glPass]) {
+                return Swal.fire('Acceso Denegado', 'Número de GL no válido para esta área', 'error');
+            }
+        }
+ 
+        const payload = {
+            ...appState,
+            cajas: parseInt(cajas),
+            piezas: parseInt(piezas || 0),
+            action: "save"
+        };
+ 
+        Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
+ 
+        try {
+            await fetch(GOOGLE_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(payload)
+            });
+ 
+            Swal.fire({
+                icon: 'success',
+                title: 'Captura Exitosa',
+                text: `Guardado en ${appState.areaB}`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+ 
+            document.getElementById('inputCajas').value = "";
+            document.getElementById('inputPiezas').value = "";
+            showStep(3);
+            startScanner();
+ 
+        } catch(error) {
+            Swal.fire('Error', 'No se pudo guardar la información', 'error');
         }
     }
 </script>
-
+ 
 </body>
 </html>
